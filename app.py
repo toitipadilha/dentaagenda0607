@@ -920,6 +920,28 @@ def configuracoes():
         return redirect(url_for('configuracoes'))
     return render_template('configuracoes.html', clinica=clinica)
 
+@app.route('/configuracoes/senha', methods=['POST'])
+@login_required
+def trocar_senha():
+    atual = request.form.get('senha_atual', '')
+    nova = request.form.get('senha_nova', '')
+    confirmar = request.form.get('senha_confirmar', '')
+
+    if not current_user.check_senha(atual):
+        flash('Senha atual incorreta.', 'erro')
+        return redirect(url_for('configuracoes'))
+    if len(nova) < 6:
+        flash('A nova senha precisa ter pelo menos 6 caracteres.', 'erro')
+        return redirect(url_for('configuracoes'))
+    if nova != confirmar:
+        flash('A confirmação não bateu com a nova senha.', 'erro')
+        return redirect(url_for('configuracoes'))
+
+    current_user.set_senha(nova)
+    db.session.commit()
+    flash('Senha alterada com sucesso!', 'ok')
+    return redirect(url_for('configuracoes'))
+
 
 # ─────────────────────────────────────────────
 # FINANCEIRO
@@ -1162,6 +1184,17 @@ def admin_excluir_clinica(cid_):
     db.session.delete(c)
     db.session.commit()
     flash(f'Clínica "{nome}" e todos os seus dados foram excluídos.', 'ok')
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/usuarios/<int:uid>/resetar-senha', methods=['POST'])
+@admin_required
+def admin_resetar_senha(uid):
+    import secrets
+    u = Usuario.query.filter(Usuario.id == uid, Usuario.clinica_id != None).first_or_404()
+    nova_senha = secrets.token_urlsafe(6)  # ex: "kX9p2Qz"
+    u.set_senha(nova_senha)
+    db.session.commit()
+    flash(f'Senha de {u.nome} ({u.email}) resetada! Nova senha: {nova_senha} — copie agora, ela não vai aparecer de novo.', 'ok')
     return redirect(url_for('admin_dashboard'))
 
 

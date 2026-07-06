@@ -55,8 +55,13 @@
       {% endif %}
     </div>
     {% if d.usuarios %}
-    <div style="font-size:.76rem;color:var(--muted);margin-top:6px">
-      Usuários: {% for u in d.usuarios %}{{ u.nome }} ({{ u.email }}){% if not loop.last %}, {% endif %}{% endfor %}
+    <div style="font-size:.76rem;color:var(--muted);margin-top:6px;display:flex;flex-direction:column;gap:4px">
+      {% for u in d.usuarios %}
+      <div style="display:flex;align-items:center;gap:8px">
+        <span>{{ u.nome }} ({{ u.email }})</span>
+        <button class="btn btn-secondary btn-sm" style="padding:2px 8px;font-size:.68rem" onclick="resetarSenha({{ u.id }}, '{{ u.nome|e }}')">🔑 Resetar senha</button>
+      </div>
+      {% endfor %}
     </div>
     {% endif %}
   </div>
@@ -107,6 +112,16 @@ function excluirClinica(id, nome) {
     const f = document.createElement('form');
     f.method = 'POST';
     f.action = `/admin/clinicas/${id}/excluir`;
+    document.body.appendChild(f);
+    f.submit();
+  }
+}
+
+function resetarSenha(id, nome) {
+  if (confirm(`Gerar uma senha nova pra ${nome}? A senha antiga deixa de funcionar na hora.`)) {
+    const f = document.createElement('form');
+    f.method = 'POST';
+    f.action = `/admin/usuarios/${id}/resetar-senha`;
     document.body.appendChild(f);
     f.submit();
   }
