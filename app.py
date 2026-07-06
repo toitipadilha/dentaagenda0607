@@ -453,6 +453,7 @@ def editar_consulta(cid_):
 @login_required
 def excluir_consulta(cid_):
     c = Consulta.query.filter_by(id=cid_, clinica_id=current_user.clinica_id).first_or_404()
+    Evolucao.query.filter_by(consulta_id=cid_).update({'consulta_id': None})
     db.session.delete(c)
     db.session.commit()
     flash('Consulta excluída.', 'ok')
@@ -624,6 +625,7 @@ def editar_paciente(pid):
 @login_required
 def excluir_paciente(pid):
     p = Paciente.query.filter_by(id=pid, clinica_id=current_user.clinica_id).first_or_404()
+    Tarefa.query.filter_by(paciente_id=pid).update({'paciente_id': None})
     db.session.delete(p)
     db.session.commit()
     flash('Paciente excluído.', 'ok')
@@ -1176,6 +1178,9 @@ def admin_nova_clinica():
 def admin_excluir_clinica(cid_):
     c = Clinica.query.filter(Clinica.id == cid_, Clinica.slug != ADMIN_CLINICA_SLUG).first_or_404()
     nome = c.nome
+    Evolucao.query.filter_by(clinica_id=c.id).delete()
+    Anamnese.query.filter_by(clinica_id=c.id).delete()
+    Tarefa.query.filter_by(clinica_id=c.id).delete()
     Lancamento.query.filter_by(clinica_id=c.id).delete()
     HorarioBloqueado.query.filter_by(clinica_id=c.id).delete()
     Consulta.query.filter_by(clinica_id=c.id).delete()
