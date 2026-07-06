@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+{% block title %}Financeiro — DentaAgenda{% endblock %}
+
+{% block content %}
+<div class="week-nav">
+  <a class="btn btn-secondary btn-sm" href="{{ url_for('financeiro', mes=mes_anterior) }}">&#8592; Anterior</a>
+  <h2>{{ mes_label }}</h2>
+  <a class="btn btn-secondary btn-sm" href="{{ url_for('financeiro', mes=mes_seguinte) }}">Próximo &#8594;</a>
+</div>
+
+<div class="fin-cards">
+  <div class="fin-card receita">
+    <div class="label">Receitas</div>
+    <div class="value">R$ {{ '%.2f'|format(total_receitas)|replace('.',',') }}</div>
+  </div>
+  <div class="fin-card despesa">
+    <div class="label">Despesas</div>
+    <div class="value">R$ {{ '%.2f'|format(total_despesas)|replace('.',',') }}</div>
+  </div>
+  <div class="fin-card saldo">
+    <div class="label">Saldo</div>
+    <div class="value {% if saldo >= 0 %}pos{% else %}neg{% endif %}">R$ {{ '%.2f'|format(saldo)|replace('.',',') }}</div>
+  </div>
+  <div class="fin-card pendente">
+    <div class="label">A receber ({{ qtd_a_receber }})</div>
+    <div class="value">R$ {{ '%.2f'|format(a_receber)|replace('.',',') }}</div>
+  </div>
+</div>
+
+<div class="section-head">
+  <h2>Lançamentos do mês</h2>
+  <button class="btn btn-primary" onclick="abrirNovoLancamento()">＋ Lançamento</button>
+</div>
+
+{% if not itens %}
+<div class="empty"><p>Nenhum lançamento neste mês.</p>
+  <button class="btn btn-primary" onclick="abrirNovoLancamento()">＋ Lançamento</button>
+</div>
+{% else %}
+{% for i in itens %}
+<div class="fin-row">
+  <div class="fin-info">
+    <div class="fin-desc">{{ i.descricao }}</div>
+    <div class="fin-meta">{{ i.data.strftime('%d/%m') }} · {{ i.categoria }}{% if i.forma_pagamento != '—' %} · {{ i.forma_pagamento }}{% endif %}</div>
+  </div>
+  <div class="fin-valor {{ i.tipo }}">{% if i.tipo=='despesa' %}-{% else %}+{% endif %} R$ {{ '%.2f'|format(i.valor)|replace('.',',') }}</div>
+  {% if i.origem == 'lancamento' %}
+  <button class="btn btn-secondary btn-sm" onclick="editarLancamento({{ i.id }})">✏️</button>
+  {% else %}
+  <span class="badge badge-confirmado" title="Gerado a partir de uma consulta">consulta</span>
+  {% endif %}
+</div>
+{% endfor %}
+{% endif %}
+
+<!-- Modal: Novo/Editar Lançamento -->
+<div class="overlay" id="ov-lanc">
+  <div class="modal">
+    <h3 id="lanc-titulo">Novo Lançamento</h3>
+    <form method="POST" id="form-lanc" action="{{ url_for('novo_lancamento') }}">
+      <div class="fin-type-toggle">
+        <button type="button" class="fin-type-btn receita active" id="btn-tipo-receita" onclick="setTipo('receita')">↑ Receita</button>
+        <button type="button" class="fin-type-btn despesa" id="btn-tipo-despesa" onclick="setTipo('despesa')">↓ Despesa</button>
+      </div>
+      <input type="hidden" name="tipo" id="lanc-tipo" value="receita">
+      <div class="form-group">
+        <label>Descrição</label>
+        <input type="text" name="descricao" id="lanc-desc" placeholder="Ex: Aluguel, Material, Recebimento avulso..." required>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Valor (R$)</label>
+          <input type="text" name="valor" id="lanc-valor" placeholder="0,00" required>
+        </div>
+        <div class="form-group">
+          <label>Data</label>
+          <input type="date" name="data" id="lanc-data" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Categoria</label>
+          <select name="categoria" id="lanc-categoria">
+            <option value="">Selecione...</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Forma de pagamento</label>
+          <select name="forma_pagamento" id="lanc-forma">
+            <option value="">—</option>
+            {% for f in formas_pagamento %}
+            <option value="{{ f }}">{{ f }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Observações</label>
+        <textarea name="obs" id="lanc-obs"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-danger btn-sm" id="lanc-excluir" style="display:none">Excluir</button>
+        <div style="flex:1"></div>
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('ov-lanc').classList.remove('open')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CATS = {
+  receita: {{ categorias_receita|tojson }},
+  despesa: {{ categorias_despesa|tojson }}
+};
+
+function popularCategorias(tipo, selecionada) {
+  const sel = document.getElementById('lanc-categoria');
+  sel.innerHTML = '<option value="">Selecione...</option>' +
+    CATS[tipo].map(c => `<option value="${c}" ${c===selecionada?'selected':''}>${c}</option>`).join('');
+}
+
+function setTipo(tipo) {
+  document.getElementById('lanc-tipo').value = tipo;
+  document.getElementById('btn-tipo-receita').classList.toggle('active', tipo === 'receita');
+  document.getElementById('btn-tipo-despesa').classList.toggle('active', tipo === 'despesa');
+  popularCategorias(tipo, '');
+}
+
+function abrirNovoLancamento() {
+  document.getElementById('lanc-titulo').textContent = 'Novo Lançamento';
+  document.getElementById('form-lanc').action = "{{ url_for('novo_lancamento') }}";
+  document.getElementById('lanc-desc').value = '';
+  document.getElementById('lanc-valor').value = '';
+  document.getElementById('lanc-data').value = new Date().toISOString().slice(0,10);
+  document.getElementById('lanc-forma').value = '';
+  document.getElementById('lanc-obs').value = '';
+  document.getElementById('lanc-excluir').style.display = 'none';
+  setTipo('despesa');
+  document.getElementById('ov-lanc').classList.add('open');
+}
+
+async function editarLancamento(id) {
+  const r = await fetch(`/api/lancamento/${id}`);
+  const d = await r.json();
+  document.getElementById('lanc-titulo').textContent = 'Editar Lançamento';
+  document.getElementById('form-lanc').action = `/financeiro/${id}/editar`;
+  document.getElementById('lanc-tipo').value = d.tipo;
+  document.getElementById('btn-tipo-receita').classList.toggle('active', d.tipo === 'receita');
+  document.getElementById('btn-tipo-despesa').classList.toggle('active', d.tipo === 'despesa');
+  popularCategorias(d.tipo, d.categoria);
+  document.getElementById('lanc-desc').value = d.descricao;
+  document.getElementById('lanc-valor').value = String(d.valor).replace('.', ',');
+  document.getElementById('lanc-data').value = d.data;
+  document.getElementById('lanc-forma').value = d.forma_pagamento;
+  document.getElementById('lanc-obs').value = d.obs;
+  const btnExcluir = document.getElementById('lanc-excluir');
+  btnExcluir.style.display = '';
+  btnExcluir.onclick = () => {
+    if (confirm('Excluir este lançamento?')) {
+      fetch(`/financeiro/${id}/excluir`, {method:'POST'}).then(() => location.reload());
+    }
+  };
+  document.getElementById('ov-lanc').classList.add('open');
+}
+
+// categorias iniciais
+popularCategorias('receita', '');
+</script>
+{% endblock %}

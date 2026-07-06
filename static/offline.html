@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Sem conexão — DentaAgenda</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Serif+Display&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:#F9F7F4;color:#1A1A1A;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center}
+.box{max-width:340px}
+.emoji{font-size:3rem;margin-bottom:12px}
+h1{font-family:'DM Serif Display',serif;color:#2A7D6F;font-size:1.4rem;margin-bottom:10px}
+p{color:#6B7280;font-size:.92rem;line-height:1.5;margin-bottom:22px}
+button{background:#2A7D6F;color:#fff;border:none;border-radius:8px;padding:12px 20px;font-family:'DM Sans',sans-serif;font-size:.9rem;font-weight:600;cursor:pointer}
+button:hover{background:#1D5C52}
+</style>
+</head>
+<body>
+  <div class="box">
+    <div class="emoji">📡</div>
+    <h1>Sem conexão com a internet</h1>
+    <p>Não conseguimos falar com o servidor agora. Verifique sua internet e tente de novo.</p>
+    <button onclick="location.reload()">Tentar novamente</button>
+  </div>
+</body>
+</html>

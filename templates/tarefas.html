@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block title %}Tarefas — DentaAgenda{% endblock %}
+
+{% block content %}
+<div class="section-head">
+  <h2>✅ Tarefas</h2>
+  <button class="btn btn-primary" onclick="document.getElementById('ov-nova-tarefa').classList.add('open')">＋ Tarefa</button>
+</div>
+
+<div class="fin-type-toggle" style="max-width:360px">
+  <a class="fin-type-btn receita {% if filtro=='pendentes' %}active{% endif %}" style="text-decoration:none;text-align:center" href="{{ url_for('tarefas', filtro='pendentes') }}">Pendentes</a>
+  <a class="fin-type-btn despesa {% if filtro=='concluidas' %}active{% endif %}" style="text-decoration:none;text-align:center" href="{{ url_for('tarefas', filtro='concluidas') }}">Concluídas</a>
+  <a class="fin-type-btn despesa {% if filtro=='todas' %}active{% endif %}" style="text-decoration:none;text-align:center" href="{{ url_for('tarefas', filtro='todas') }}">Todas</a>
+</div>
+
+{% if not tarefas %}
+<div class="empty"><p>Nenhuma tarefa {{ 'pendente' if filtro=='pendentes' else ('concluída' if filtro=='concluidas' else '') }}.</p></div>
+{% else %}
+{% for t in tarefas %}
+<div class="card" id="tarefa-{{ t.id }}" style="align-items:flex-start">
+  <div style="padding-top:2px">
+    <input type="checkbox" {% if t.concluida %}checked{% endif %} onchange="toggleTarefa({{ t.id }})" style="width:20px;height:20px;cursor:pointer">
+  </div>
+  <div class="card-info">
+    <div class="card-name" style="{% if t.concluida %}text-decoration:line-through;color:var(--muted){% endif %}">{{ t.titulo }}</div>
+    <div class="card-sub">
+      {% if t.prazo %}
+        {% set atrasada = (not t.concluida) and (t.prazo < hoje) %}
+        <span class="badge {% if atrasada %}badge-cancelado{% else %}badge-pendente{% endif %}">
+          {% if atrasada %}atrasada — {% endif %}prazo {{ t.prazo.strftime('%d/%m/%Y') }}
+        </span>
+      {% endif %}
+      {% if t.paciente %} · vinculada a {{ t.paciente.nome }}{% endif %}
+    </div>
+    {% if t.descricao %}<div style="font-size:.82rem;color:var(--muted);margin-top:4px">{{ t.descricao }}</div>{% endif %}
+  </div>
+  <div class="card-actions">
+    <form method="POST" action="{{ url_for('excluir_tarefa', tid=t.id) }}" onsubmit="return confirm('Excluir esta tarefa?')">
+      <button type="submit" class="btn btn-secondary btn-sm">Excluir</button>
+    </form>
+  </div>
+</div>
+{% endfor %}
+{% endif %}
+
+<!-- Modal: Nova Tarefa -->
+<div class="overlay" id="ov-nova-tarefa">
+  <div class="modal">
+    <h3>Nova Tarefa</h3>
+    <form method="POST" action="{{ url_for('nova_tarefa') }}">
+      <div class="form-group">
+        <label>Título</label>
+        <input type="text" name="titulo" required placeholder="Ex: Ligar pra confirmar exame">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Prazo (opcional)</label>
+          <input type="date" name="prazo">
+        </div>
+        <div class="form-group">
+          <label>Vincular a um paciente (opcional)</label>
+          <select name="paciente_id">
+            <option value="">— nenhum —</option>
+            {% for p in pacientes %}
+            <option value="{{ p.id }}">{{ p.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Descrição (opcional)</label>
+        <textarea name="descricao" rows="2"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('ov-nova-tarefa').classList.remove('open')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function toggleTarefa(id) {
+  const r = await fetch(`/tarefas/${id}/concluir`, {method: 'POST'});
+  if (r.ok) {
+    location.reload();
+  }
+}
+</script>
+{% endblock %}

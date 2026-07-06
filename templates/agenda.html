@@ -1,0 +1,347 @@
+{% extends 'base.html' %}
+{% block title %}Agenda — DentaAgenda{% endblock %}
+
+{% block content %}
+<div class="agenda-layout">
+<div class="agenda-main">
+
+<div class="week-nav">
+  <a class="btn btn-secondary btn-sm" href="{{ url_for('agenda_semana', offset=offset-1) }}">&#8592; Anterior</a>
+  <h2>
+    {% set f = dias[0] %}
+    {% set l = dias[-1] %}
+    {{ f.strftime('%d/%m') }} – {{ l.strftime('%d/%m/%Y') }}
+  </h2>
+  <a class="btn btn-secondary btn-sm" href="{{ url_for('agenda_semana', offset=offset+1) }}">Próxima &#8594;</a>
+</div>
+
+<div class="week-grid-wrap">
+<div class="week-grid">
+  <!-- Header -->
+  <div class="wg-header" style="background:#fff"></div>
+  {% for dia in dias %}
+  {% set ds = dia.isoformat() %}
+  <div class="wg-header {% if dia == hoje %}hoje{% endif %}">
+    <div style="opacity:.8;font-size:.6rem">{{ dias_label[loop.index0] }}</div>
+    <div style="font-size:.95rem;font-weight:700">{{ dia.day }}</div>
+  </div>
+  {% endfor %}
+
+  <!-- Linhas de horário -->
+  {% for hr in horarios %}
+  <div class="wg-time">{{ hr }}</div>
+  {% for dia in dias %}
+  {% set ds = dia.isoformat() %}
+  {% set appt = mapa.get((ds, hr)) %}
+  {% set bloq = (ds, hr) in bloq_set %}
+  <div class="wg-cell {% if dia==hoje %}hoje{% endif %} {% if bloq %}bloqueado{% endif %}"
+       {% if not bloq and not appt %}onclick="openNovaConsulta('{{ ds }}','{{ hr }}')"{% endif %}>
+    {% if appt %}
+    <div class="wg-appt {{ appt.status }}" onclick="openDetalhe({{ appt.id }})" title="{{ appt.paciente.nome }} — {{ appt.procedimento }}">
+      {{ appt.paciente.nome.split()[0] }}
+    </div>
+    {% elif bloq %}
+    <div style="font-size:.6rem;color:#D1D5DB;padding:4px">bloq.</div>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% endfor %}
+</div>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#F59E0B"></div>Pendente</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#10B981"></div>Confirmado</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#EC4899"></div>Em atendimento</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#D1D5DB"></div>Finalizado</div>
+</div>
+
+</div><!-- /agenda-main -->
+
+<div class="agenda-aside">
+  <div class="avisos-panel">
+    <h3>🔔 Avisos de hoje</h3>
+
+    {% if not pendentes_hoje and not aniversariantes_hoje and not amanha_pendentes %}
+    <div class="avisos-empty">Nenhum aviso por enquanto ✨</div>
+    {% endif %}
+
+    {% if aniversariantes_hoje %}
+    <div class="aviso-grupo">
+      <div class="aviso-titulo">🎂 Aniversariantes ({{ aniversariantes_hoje|length }})</div>
+      {% for p, idade in aniversariantes_hoje %}
+      <div class="aviso-card aniversario">
+        <div class="aviso-nome">{{ p.nome }}<span class="aviso-meta">{{ idade }} anos</span></div>
+        {% if p.telefone %}
+        <div class="aviso-actions">
+          <a class="btn btn-wa" href="{{ wa_link(p.telefone, build_wa_aniversario(p, clinica)) }}" target="_blank">💬 Parabenizar</a>
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if pendentes_hoje %}
+    <div class="aviso-grupo">
+      <div class="aviso-titulo">⏳ Pendentes de confirmação ({{ pendentes_hoje|length }})</div>
+      {% for c in pendentes_hoje %}
+      <div class="aviso-card pendente" id="aviso-consulta-{{ c.id }}">
+        <div class="aviso-nome">{{ c.paciente.nome }}<span class="aviso-meta">{{ c.hora }}</span></div>
+        <div class="aviso-actions">
+          {% if c.paciente.telefone %}
+          <a class="btn btn-wa" href="{{ wa_link(c.paciente.telefone, build_wa_msg(c.paciente, c)) }}" target="_blank">💬</a>
+          {% endif %}
+          <button class="btn btn-secondary" onclick="confirmarRapido({{ c.id }})">✓ Confirmar</button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if amanha_pendentes %}
+    <div class="aviso-grupo">
+      <div class="aviso-titulo">📅 Confirmar amanhã ({{ amanha.strftime('%d/%m') }}) — {{ amanha_pendentes|length }}</div>
+      {% for c in amanha_pendentes %}
+      <div class="aviso-card amanha" id="aviso-consulta-{{ c.id }}">
+        <div class="aviso-nome">{{ c.paciente.nome }}<span class="aviso-meta">{{ c.hora }}</span></div>
+        <div class="aviso-actions">
+          {% if c.paciente.telefone %}
+          <a class="btn btn-wa" href="{{ wa_link(c.paciente.telefone, build_wa_msg(c.paciente, c)) }}" target="_blank">💬</a>
+          {% endif %}
+          <button class="btn btn-secondary" onclick="confirmarRapido({{ c.id }})">✓ Confirmar</button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+</div><!-- /agenda-layout -->
+
+<!-- Modal: Nova Consulta -->
+<div class="overlay" id="ov-nova">
+  <div class="modal">
+    <h3>Nova Consulta</h3>
+    <form method="POST" action="{{ url_for('nova_consulta') }}">
+      <div class="form-group">
+        <label>Paciente</label>
+        <select name="paciente_id" required id="sel-pac-nova">
+          <option value="">Selecione...</option>
+          {% for p in current_user.clinica.pacientes|sort(attribute='nome') %}
+          <option value="{{ p.id }}">{{ p.nome }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Data</label>
+          <input type="date" name="data" id="inp-data-nova" required>
+        </div>
+        <div class="form-group">
+          <label>Horário</label>
+          <input type="time" name="hora" id="inp-hora-nova" step="1800" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Procedimento</label>
+        <input type="text" name="procedimento" placeholder="Ex: Limpeza, Extração...">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Valor (R$)</label>
+          <input type="text" name="valor" id="inp-valor-nova" placeholder="0,00">
+        </div>
+        <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:9px">
+          <label style="display:flex;align-items:center;gap:6px;text-transform:none;font-size:.88rem;color:var(--ink)">
+            <input type="checkbox" name="pago" id="inp-pago-nova" style="width:auto"> Já pago
+          </label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select name="status">
+          <option value="pendente">Pendente</option>
+          <option value="confirmado">Confirmado</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Observações</label>
+        <textarea name="obs"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('ov-nova').classList.remove('open')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Detalhe Consulta -->
+<div class="overlay" id="ov-detalhe">
+  <div class="modal">
+    <h3>Consulta</h3>
+    <div id="detalhe-body" style="display:grid;gap:10px;margin-bottom:16px"></div>
+    <div id="detalhe-status-btns" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="document.getElementById('ov-detalhe').classList.remove('open')">Fechar</button>
+      <a class="btn btn-wa" id="btn-wa-detalhe" href="#" target="_blank">💬 WhatsApp</a>
+      <button class="btn btn-primary" id="btn-editar-detalhe">✏️ Editar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Editar Consulta -->
+<div class="overlay" id="ov-editar">
+  <div class="modal">
+    <h3>Editar Consulta</h3>
+    <form method="POST" id="form-editar">
+      <input type="hidden" name="_method" value="POST">
+      <div class="form-group">
+        <label>Paciente</label>
+        <select name="paciente_id" id="ed-pac">
+          {% for p in current_user.clinica.pacientes|sort(attribute='nome') %}
+          <option value="{{ p.id }}">{{ p.nome }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Data</label>
+          <input type="date" name="data" id="ed-data" required>
+        </div>
+        <div class="form-group">
+          <label>Horário</label>
+          <input type="time" name="hora" id="ed-hora" step="1800">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Procedimento</label>
+        <input type="text" name="procedimento" id="ed-proc">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Valor (R$)</label>
+          <input type="text" name="valor" id="ed-valor" placeholder="0,00">
+        </div>
+        <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:9px">
+          <label style="display:flex;align-items:center;gap:6px;text-transform:none;font-size:.88rem;color:var(--ink)">
+            <input type="checkbox" name="pago" id="ed-pago" style="width:auto"> Já pago
+          </label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select name="status" id="ed-status">
+          <option value="pendente">Pendente</option>
+          <option value="confirmado">Confirmado</option>
+          <option value="em_atendimento">Em atendimento</option>
+          <option value="finalizado">Finalizado</option>
+          <option value="cancelado">Cancelado</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Observações</label>
+        <textarea name="obs" id="ed-obs"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-danger btn-sm" id="btn-excluir-ed">Excluir</button>
+        <div style="flex:1"></div>
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('ov-editar').classList.remove('open')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentApptId = null;
+
+async function confirmarRapido(id) {
+  try {
+    const r = await fetch(`/consultas/${id}/status`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: 'status=confirmado'
+    });
+    if (r.ok) {
+      const card = document.getElementById(`aviso-consulta-${id}`);
+      if (card) {
+        card.style.transition = 'opacity .25s, transform .25s';
+        card.style.opacity = '0';
+        card.style.transform = 'translateX(8px)';
+        setTimeout(() => location.reload(), 250);
+      } else {
+        location.reload();
+      }
+      toast('Consulta confirmada!');
+    } else {
+      toast('Não consegui confirmar, tenta de novo.');
+    }
+  } catch (e) {
+    toast('Erro de conexão.');
+  }
+}
+
+function openNovaConsulta(data, hora) {
+  document.getElementById('inp-data-nova').value = data;
+  document.getElementById('inp-hora-nova').value = hora;
+  document.getElementById('ov-nova').classList.add('open');
+}
+
+async function openDetalhe(id) {
+  currentApptId = id;
+  const r = await fetch(`/api/consulta/${id}`);
+  const d = await r.json();
+  const [y,m,di] = d.data.split('-');
+  const statusLabels = {pendente:'Pendente',confirmado:'Confirmado',em_atendimento:'Em atendimento',finalizado:'Finalizado',cancelado:'Cancelado'};
+  document.getElementById('detalhe-body').innerHTML = `
+    <div><span style="font-size:.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Paciente</span><div style="font-weight:600;margin-top:2px">${d.paciente}</div></div>
+    <div><span style="font-size:.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Data & Hora</span><div style="font-weight:600;margin-top:2px">${di}/${m}/${y} às ${d.hora}</div></div>
+    <div><span style="font-size:.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Procedimento</span><div style="margin-top:2px">${d.procedimento||'—'}</div></div>
+    <div><span style="font-size:.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Valor</span><div style="margin-top:2px">${d.valor ? 'R$ '+d.valor.toFixed(2).replace('.',',') + (d.pago ? ' <span class="badge badge-confirmado">pago</span>' : ' <span class="badge badge-pendente">a receber</span>') : '—'}</div></div>
+    <div><span style="font-size:.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Status</span><div style="margin-top:4px"><span class="badge badge-${d.status}">${statusLabels[d.status]||d.status}</span></div></div>
+    ${d.obs?`<div><span style="font-size:.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Obs</span><div style="margin-top:2px">${d.obs}</div></div>`:''}
+  `;
+  // botões rápidos de status
+  const statuses = [['confirmado','✓ Confirmado'],['em_atendimento','🟦 Atendendo'],['finalizado','✅ Finalizado'],['cancelado','✗ Cancelar']];
+  document.getElementById('detalhe-status-btns').innerHTML = statuses
+    .filter(s => s[0] !== d.status)
+    .map(s => `<button class="btn btn-secondary btn-sm" onclick="mudarStatus(${id},'${s[0]}')">${s[1]}</button>`)
+    .join('');
+  document.getElementById('btn-wa-detalhe').href = d.wa_link || '#';
+  document.getElementById('btn-wa-detalhe').style.display = d.wa_link ? '' : 'none';
+  document.getElementById('btn-editar-detalhe').onclick = () => openEditar(d);
+  document.getElementById('ov-detalhe').classList.add('open');
+}
+
+function openEditar(d) {
+  document.getElementById('form-editar').action = `/consultas/${d.id}/editar`;
+  document.getElementById('ed-pac').value   = d.paciente_id;
+  document.getElementById('ed-data').value  = d.data;
+  document.getElementById('ed-hora').value  = d.hora;
+  document.getElementById('ed-proc').value  = d.procedimento;
+  document.getElementById('ed-status').value= d.status;
+  document.getElementById('ed-obs').value   = d.obs;
+  document.getElementById('ed-valor').value = d.valor ? String(d.valor).replace('.', ',') : '';
+  document.getElementById('ed-pago').checked = !!d.pago;
+  document.getElementById('btn-excluir-ed').onclick = () => {
+    if(confirm('Excluir esta consulta?')) {
+      fetch(`/consultas/${d.id}/excluir`, {method:'POST'}).then(()=>location.reload());
+    }
+  };
+  document.getElementById('ov-detalhe').classList.remove('open');
+  document.getElementById('ov-editar').classList.add('open');
+}
+
+async function mudarStatus(id, status) {
+  const fd = new FormData(); fd.append('status', status);
+  await fetch(`/consultas/${id}/status`, {method:'POST', body:fd});
+  document.getElementById('ov-detalhe').classList.remove('open');
+  location.reload();
+}
+</script>
+{% endblock %}

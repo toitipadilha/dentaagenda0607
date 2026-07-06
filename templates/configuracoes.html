@@ -1,0 +1,231 @@
+{% extends 'base.html' %}
+{% block title %}Configurações — DentaAgenda{% endblock %}
+{% block content %}
+<div class="section-head">
+  <h2>Configurações</h2>
+</div>
+
+<div style="background:var(--white);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);max-width:580px">
+  <form method="POST" enctype="multipart/form-data">
+
+    <h3 style="font-family:'DM Serif Display',serif;color:var(--teal-dk);font-size:1rem;margin-bottom:6px">Cor da clínica</h3>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">
+      Personaliza o sistema (e o ícone do app no celular) com a cor da sua marca.
+    </p>
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:24px">
+      <input type="color" name="cor_primaria" id="cor-input" value="{{ clinica.cor_primaria or '#2A7D6F' }}"
+             style="width:52px;height:40px;border:1px solid var(--border);border-radius:8px;padding:2px;cursor:pointer">
+      <div id="cor-preview" style="flex:1;background:{{ clinica.cor_primaria or '#2A7D6F' }};color:#fff;border-radius:8px;padding:10px 14px;font-size:.85rem;font-weight:600;text-align:center;transition:background .15s">
+        DentaAgenda — {{ clinica.nome }}
+      </div>
+    </div>
+
+    <hr style="border:none;border-top:1px solid var(--border);margin:0 0 22px">
+
+    <h3 style="font-family:'DM Serif Display',serif;color:var(--teal-dk);font-size:1rem;margin-bottom:6px">Mensagem do WhatsApp</h3>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:16px">
+      Personalize o lembrete enviado aos pacientes. Use as variáveis abaixo para inserir dados automáticos:
+    </p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+      <span onclick="inserirVar('{nome}')"     style="cursor:pointer;background:var(--mint);color:var(--teal-dk);padding:4px 10px;border-radius:20px;font-size:.78rem;font-weight:600">{nome}</span>
+      <span onclick="inserirVar('{data}')"     style="cursor:pointer;background:var(--mint);color:var(--teal-dk);padding:4px 10px;border-radius:20px;font-size:.78rem;font-weight:600">{data}</span>
+      <span onclick="inserirVar('{hora}')"     style="cursor:pointer;background:var(--mint);color:var(--teal-dk);padding:4px 10px;border-radius:20px;font-size:.78rem;font-weight:600">{hora}</span>
+      <span onclick="inserirVar('{procedimento}')" style="cursor:pointer;background:var(--mint);color:var(--teal-dk);padding:4px 10px;border-radius:20px;font-size:.78rem;font-weight:600">{procedimento}</span>
+    </div>
+    <p style="font-size:.75rem;color:var(--muted);margin-bottom:16px">Clique nas variáveis acima para inserir no texto.</p>
+
+    <div class="form-group">
+      <label>Mensagem</label>
+      <textarea name="msg_whatsapp" id="msg-input" rows="5" placeholder="Ex: Ola {nome}! Sua consulta e dia {data} as {hora}.">{{ clinica.msg_whatsapp or '' }}</textarea>
+    </div>
+    <div style="background:var(--cream);border-radius:8px;padding:14px;margin-bottom:16px">
+      <div style="font-size:.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Preview</div>
+      <div id="preview" style="font-size:.88rem;color:var(--ink);white-space:pre-wrap;line-height:1.6"></div>
+    </div>
+
+    <hr style="border:none;border-top:1px solid var(--border);margin:22px 0">
+
+    <h3 style="font-family:'DM Serif Display',serif;color:var(--teal-dk);font-size:1rem;margin-bottom:6px">Mensagem de campanha de retorno</h3>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:16px">
+      Usada na tela <strong>Pacientes → Parados</strong> para reativar quem não volta há um tempo.
+    </p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+      <span onclick="inserirVarRetorno('{nome}')" style="cursor:pointer;background:var(--mint);color:var(--teal-dk);padding:4px 10px;border-radius:20px;font-size:.78rem;font-weight:600">{nome}</span>
+    </div>
+    <div class="form-group">
+      <label>Mensagem</label>
+      <textarea name="msg_retorno" id="msg-retorno-input" rows="4" placeholder="Ex: Ola {nome}! Faz um tempo que voce nao vem aqui. Que tal agendar seu retorno?">{{ clinica.msg_retorno or '' }}</textarea>
+    </div>
+    <div style="background:var(--cream);border-radius:8px;padding:14px;margin-bottom:16px">
+      <div style="font-size:.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Preview</div>
+      <div id="preview-retorno" style="font-size:.88rem;color:var(--ink);white-space:pre-wrap;line-height:1.6"></div>
+    </div>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button type="button" class="btn btn-secondary" onclick="resetar()">Resetar padrão</button>
+      <button type="submit" class="btn btn-primary">Salvar</button>
+    </div>
+  </form>
+</div>
+
+<div style="background:var(--white);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);max-width:580px;margin-top:20px">
+  <h3 style="font-family:'DM Serif Display',serif;color:var(--teal-dk);font-size:1rem;margin-bottom:6px">🎂 Mensagem de aniversário</h3>
+  <p style="font-size:.82rem;color:var(--muted);margin-bottom:16px">
+    Usada na tela <strong>Pacientes → Aniversariantes</strong>, pra parabenizar quem faz aniversário no dia.
+  </p>
+  <form method="POST" enctype="multipart/form-data">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+      <span onclick="inserirVarAniv('{nome}')" style="cursor:pointer;background:var(--mint);color:var(--teal-dk);padding:4px 10px;border-radius:20px;font-size:.78rem;font-weight:600">{nome}</span>
+    </div>
+    <div class="form-group">
+      <label>Mensagem</label>
+      <textarea name="msg_aniversario" id="msg-aniv-input" rows="3" placeholder="Ex: Feliz aniversario, {nome}! Toda a equipe deseja um dia maravilhoso!">{{ clinica.msg_aniversario or '' }}</textarea>
+    </div>
+    <div style="background:var(--cream);border-radius:8px;padding:14px;margin-bottom:20px">
+      <div style="font-size:.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Preview</div>
+      <div id="preview-aniv" style="font-size:.88rem;color:var(--ink);white-space:pre-wrap;line-height:1.6"></div>
+    </div>
+
+    <hr style="border:none;border-top:1px solid var(--border);margin:0 0 20px">
+
+    <label style="display:block;font-size:.85rem;font-weight:600;margin-bottom:6px">Imagem de aniversário (opcional)</label>
+    <p style="font-size:.78rem;color:var(--muted);margin-bottom:12px">
+      Uma artezinha/cartão pra usar na mensagem. Importante: o WhatsApp <strong>não permite anexar imagem automaticamente</strong> via link — na tela de Aniversariantes você vai poder baixar essa imagem com um clique e anexar manualmente na conversa antes de enviar.
+    </p>
+
+    {% if clinica.imagem_aniversario %}
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;background:var(--cream);border-radius:8px;padding:10px 14px">
+      <img src="{{ url_for('static', filename=clinica.imagem_aniversario) }}" alt="Imagem de aniversário atual" style="width:56px;height:56px;object-fit:cover;border-radius:8px">
+      <div style="flex:1;font-size:.82rem;color:var(--muted)">Imagem atual configurada</div>
+      <label style="display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--red);cursor:pointer">
+        <input type="checkbox" name="remover_imagem_aniversario" style="width:auto"> remover
+      </label>
+    </div>
+    {% endif %}
+
+    <input type="file" name="imagem_aniversario" accept=".jpg,.jpeg,.png,.webp" style="margin-bottom:20px">
+
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button type="submit" class="btn btn-primary">Salvar</button>
+    </div>
+  </form>
+</div>
+
+<div style="background:var(--white);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);max-width:580px;margin-top:20px">
+  <h3 style="font-family:'DM Serif Display',serif;color:var(--teal-dk);font-size:1rem;margin-bottom:6px">💳 Mensagem de cobrança</h3>
+  <p style="font-size:.82rem;color:var(--muted);margin-bottom:16px">
+    Usada na tela <strong>Pacientes → Inadimplentes</strong>. Use <code>{valor}</code> pra inserir o valor devido automaticamente.
+  </p>
+  <form method="POST">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+      <span onclick="inserirVarCobranca('{nome}')" style="cursor:pointer;background:var(--mint);color:var(--teal-dk);padding:4px 10px;border-radius:20px;font-size:.78rem;font-weight:600">{nome}</span>
+      <span onclick="inserirVarCobranca('{valor}')" style="cursor:pointer;background:var(--mint);color:var(--teal-dk);padding:4px 10px;border-radius:20px;font-size:.78rem;font-weight:600">{valor}</span>
+    </div>
+    <div class="form-group">
+      <label>Mensagem</label>
+      <textarea name="msg_cobranca" id="msg-cobranca-input" rows="3" placeholder="Ex: Ola {nome}! Identificamos uma pendencia de R$ {valor}...">{{ clinica.msg_cobranca or '' }}</textarea>
+    </div>
+    <div style="background:var(--cream);border-radius:8px;padding:14px;margin-bottom:20px">
+      <div style="font-size:.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px">Preview</div>
+      <div id="preview-cobranca" style="font-size:.88rem;color:var(--ink);white-space:pre-wrap;line-height:1.6"></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end">
+      <button type="submit" class="btn btn-primary">Salvar</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const EXEMPLO = {
+  nome: 'Maria',
+  data: '15/07/2026',
+  hora: '09:00',
+  procedimento: 'Limpeza'
+};
+
+function atualizarPreview() {
+  let msg = document.getElementById('msg-input').value;
+  msg = msg.replace(/{nome}/g, EXEMPLO.nome)
+           .replace(/{data}/g, EXEMPLO.data)
+           .replace(/{hora}/g, EXEMPLO.hora)
+           .replace(/{procedimento}/g, EXEMPLO.procedimento);
+  document.getElementById('preview').textContent = msg;
+}
+
+function atualizarPreviewRetorno() {
+  let msg = document.getElementById('msg-retorno-input').value;
+  msg = msg.replace(/{nome}/g, EXEMPLO.nome);
+  document.getElementById('preview-retorno').textContent = msg;
+}
+
+function atualizarPreviewAniv() {
+  let msg = document.getElementById('msg-aniv-input').value;
+  msg = msg.replace(/{nome}/g, EXEMPLO.nome);
+  document.getElementById('preview-aniv').textContent = msg;
+}
+
+function atualizarPreviewCobranca() {
+  let msg = document.getElementById('msg-cobranca-input').value;
+  msg = msg.replace(/{nome}/g, EXEMPLO.nome).replace(/{valor}/g, '180,00');
+  document.getElementById('preview-cobranca').textContent = msg;
+}
+
+function inserirVarCobranca(v) {
+  const el = document.getElementById('msg-cobranca-input');
+  const pos = el.selectionStart;
+  el.value = el.value.slice(0, pos) + v + el.value.slice(pos);
+  el.focus();
+  el.setSelectionRange(pos + v.length, pos + v.length);
+  atualizarPreviewCobranca();
+}
+
+function inserirVarAniv(v) {
+  const el = document.getElementById('msg-aniv-input');
+  const pos = el.selectionStart;
+  el.value = el.value.slice(0, pos) + v + el.value.slice(pos);
+  el.focus();
+  el.setSelectionRange(pos + v.length, pos + v.length);
+  atualizarPreviewAniv();
+}
+
+function inserirVar(v) {
+  const el = document.getElementById('msg-input');
+  const pos = el.selectionStart;
+  el.value = el.value.slice(0, pos) + v + el.value.slice(pos);
+  el.focus();
+  el.setSelectionRange(pos + v.length, pos + v.length);
+  atualizarPreview();
+}
+
+function inserirVarRetorno(v) {
+  const el = document.getElementById('msg-retorno-input');
+  const pos = el.selectionStart;
+  el.value = el.value.slice(0, pos) + v + el.value.slice(pos);
+  el.focus();
+  el.setSelectionRange(pos + v.length, pos + v.length);
+  atualizarPreviewRetorno();
+}
+
+function resetar() {
+  document.getElementById('msg-input').value = 'Ola {nome}! Lembrando sua consulta no dia {data} as {hora}. Procedimento: {procedimento}. Ate la!';
+  document.getElementById('msg-retorno-input').value = 'Ola {nome}! Faz um tempo que voce nao aparece por aqui. Que tal agendar seu retorno? Estamos com horarios disponiveis essa semana!';
+  atualizarPreview();
+  atualizarPreviewRetorno();
+}
+
+document.getElementById('cor-input').addEventListener('input', (e) => {
+  document.getElementById('cor-preview').style.background = e.target.value;
+});
+
+document.getElementById('msg-input').addEventListener('input', atualizarPreview);
+document.getElementById('msg-retorno-input').addEventListener('input', atualizarPreviewRetorno);
+document.getElementById('msg-aniv-input').addEventListener('input', atualizarPreviewAniv);
+document.getElementById('msg-cobranca-input').addEventListener('input', atualizarPreviewCobranca);
+atualizarPreview();
+atualizarPreviewRetorno();
+atualizarPreviewAniv();
+atualizarPreviewCobranca();
+</script>
+{% endblock %}

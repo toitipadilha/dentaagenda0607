@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Anamnese — {{ paciente.nome }}</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Serif+Display&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:#F9F7F4;color:#1A1A1A;min-height:100vh;padding:24px}
+.wrap{max-width:480px;margin:0 auto}
+.card{background:#fff;border-radius:14px;padding:28px 24px;box-shadow:0 2px 12px rgba(0,0,0,.07)}
+h1{font-family:'DM Serif Display',serif;color:#1D5C52;font-size:1.4rem;margin-bottom:6px}
+.sub{font-size:.88rem;color:#6B7280;margin-bottom:24px}
+.form-group{margin-bottom:18px}
+label{display:block;font-size:.85rem;font-weight:600;margin-bottom:6px}
+input[type=text], textarea{width:100%;padding:10px 12px;border:1px solid #E5E7EB;border-radius:8px;font-family:inherit;font-size:.9rem}
+textarea{resize:vertical;min-height:60px}
+.radio-row{display:flex;gap:16px}
+.radio-row label{display:flex;align-items:center;gap:6px;font-weight:500;font-size:.88rem}
+button{background:#2A7D6F;color:#fff;border:none;border-radius:8px;padding:13px 22px;font-family:inherit;font-size:.95rem;font-weight:600;cursor:pointer;width:100%}
+button:hover{background:#1D5C52}
+.sucesso{text-align:center;padding:20px 0}
+.sucesso .emoji{font-size:3rem;margin-bottom:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    {% if enviado %}
+    <div class="sucesso">
+      <div class="emoji">✅</div>
+      <h1>Obrigado, {{ paciente.nome.split()[0] }}!</h1>
+      <p class="sub">Suas respostas foram enviadas com sucesso. Até a consulta!</p>
+    </div>
+    {% else %}
+    <h1>Ficha de Anamnese</h1>
+    <p class="sub">Olá, {{ paciente.nome.split()[0] }}! Responda com atenção — essas informações ajudam a equipe a te atender com mais segurança.</p>
+    <form method="POST">
+      {% for chave, pergunta in perguntas %}
+      <div class="form-group">
+        <label>{{ pergunta }}</label>
+        {% if chave in ['pressao_alta','alergia','hemorragia','diabetes','cardiaco','gestante'] %}
+        <div class="radio-row">
+          <label><input type="radio" name="{{ chave }}" value="Sim" required> Sim</label>
+          <label><input type="radio" name="{{ chave }}" value="Não"> Não</label>
+          <label><input type="radio" name="{{ chave }}" value="Não sei"> Não sei</label>
+        </div>
+        {% else %}
+        <textarea name="{{ chave }}" placeholder="Escreva aqui..."></textarea>
+        {% endif %}
+      </div>
+      {% endfor %}
+      <button type="submit">Enviar respostas</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+</body>
+</html>

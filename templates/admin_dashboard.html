@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% block title %}Painel Admin — DentaAgenda{% endblock %}
+
+{% block content %}
+<div class="section-head">
+  <h2>🛠 Painel Admin</h2>
+  <button class="btn btn-primary" onclick="document.getElementById('ov-nova-clinica').classList.add('open')">＋ Nova Clínica</button>
+</div>
+
+<div class="fin-cards">
+  <div class="fin-card">
+    <div class="label">Clínicas ativas</div>
+    <div class="value">{{ total_clinicas }}</div>
+  </div>
+  <div class="fin-card">
+    <div class="label">Pacientes (total)</div>
+    <div class="value">{{ total_pacientes }}</div>
+  </div>
+  <div class="fin-card receita">
+    <div class="label">Receita das clínicas em {{ mes_label }}</div>
+    <div class="value">R$ {{ '%.2f'|format(total_receita_mes)|replace('.',',') }}</div>
+  </div>
+</div>
+
+<form method="GET" class="search-bar">
+  <input type="text" name="q" value="{{ q }}" placeholder="🔍 Buscar clínica pelo nome...">
+  <button type="submit" class="btn btn-secondary btn-sm">Buscar</button>
+  {% if q %}<a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary btn-sm">Limpar</a>{% endif %}
+</form>
+
+{% if not dados %}
+<div class="empty">
+  <p>Nenhuma clínica cadastrada ainda.</p>
+  <button class="btn btn-primary" onclick="document.getElementById('ov-nova-clinica').classList.add('open')">＋ Cadastrar primeira clínica</button>
+</div>
+{% else %}
+{% for d in dados %}
+<div class="card" style="align-items:flex-start;flex-wrap:wrap">
+  <div class="card-info">
+    <div class="card-name" style="display:flex;align-items:center;gap:8px">
+      <span style="display:inline-block;width:14px;height:14px;border-radius:4px;background:{{ d.clinica.cor_primaria or '#2A7D6F' }};border:1px solid var(--border)"></span>
+      {{ d.clinica.nome }}
+    </div>
+    <div class="card-sub">
+      /{{ d.clinica.slug }} · {{ d.clinica.telefone or 'sem telefone' }} · cliente desde {{ d.clinica.criado_em.strftime('%d/%m/%Y') }}
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+      <span class="badge badge-confirmado">{{ d.qtd_pacientes }} pacientes</span>
+      <span class="badge badge-confirmado">{{ d.qtd_consultas_mes }} consultas em {{ mes_label }}</span>
+      <span class="badge badge-pendente">R$ {{ '%.2f'|format(d.receita_mes)|replace('.',',') }} faturado em {{ mes_label }}</span>
+      {% if d.ultimo_acesso %}
+      <span class="badge badge-finalizado">último acesso {{ d.ultimo_acesso.strftime('%d/%m/%Y %H:%M') }}</span>
+      {% else %}
+      <span class="badge badge-cancelado">nunca acessou</span>
+      {% endif %}
+    </div>
+    {% if d.usuarios %}
+    <div style="font-size:.76rem;color:var(--muted);margin-top:6px">
+      Usuários: {% for u in d.usuarios %}{{ u.nome }} ({{ u.email }}){% if not loop.last %}, {% endif %}{% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  <div class="card-actions">
+    <a class="btn btn-secondary btn-sm" href="{{ url_for('tv', slug=d.clinica.slug) }}" target="_blank">📺 Ver TV</a>
+    <button class="btn btn-danger btn-sm" onclick="excluirClinica({{ d.clinica.id }}, '{{ d.clinica.nome|e }}')">Excluir</button>
+  </div>
+</div>
+{% endfor %}
+{% endif %}
+
+<!-- Modal: Nova Clínica -->
+<div class="overlay" id="ov-nova-clinica">
+  <div class="modal">
+    <h3>Nova Clínica</h3>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">
+      Cria a clínica e o primeiro usuário (dentista) responsável por ela. Passe essas credenciais pro seu cliente.
+    </p>
+    <form method="POST" action="{{ url_for('admin_nova_clinica') }}">
+      <div class="form-group"><label>Nome da clínica</label><input type="text" name="nome_clinica" required placeholder="Ex: Clínica Dra. Ana Lima"></div>
+      <div class="form-group"><label>Identificador (slug — usado na URL da TV)</label><input type="text" name="slug" required placeholder="Ex: dra-ana-lima" pattern="[a-z0-9\-]+"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Telefone da clínica</label><input type="tel" name="telefone" placeholder="35 9 9999-9999"></div>
+        <div class="form-group">
+          <label>Cor da marca</label>
+          <input type="color" name="cor_primaria" value="#2A7D6F" style="width:100%;height:38px;border:1px solid var(--border);border-radius:8px;padding:2px;cursor:pointer">
+        </div>
+      </div>
+      <hr style="border:none;border-top:1px solid var(--border);margin:16px 0">
+      <div class="form-group"><label>Nome do responsável (login)</label><input type="text" name="nome_usuario" required placeholder="Nome do dentista/recepção"></div>
+      <div class="form-row">
+        <div class="form-group"><label>E-mail de login</label><input type="email" name="email" required></div>
+        <div class="form-group"><label>Senha inicial</label><input type="text" name="senha" required placeholder="Defina uma senha"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('ov-nova-clinica').classList.remove('open')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Criar clínica</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function excluirClinica(id, nome) {
+  if (confirm(`Excluir "${nome}"? Isso apaga TODOS os dados dessa clínica (pacientes, consultas, financeiro) e não pode ser desfeito.`)) {
+    const f = document.createElement('form');
+    f.method = 'POST';
+    f.action = `/admin/clinicas/${id}/excluir`;
+    document.body.appendChild(f);
+    f.submit();
+  }
+}
+</script>
+{% endblock %}

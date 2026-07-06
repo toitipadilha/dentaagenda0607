@@ -1,0 +1,209 @@
+{% extends 'base.html' %}
+{% block title %}Prontuário — {{ paciente.nome }}{% endblock %}
+
+{% block content %}
+<div class="section-head">
+  <div>
+    <a href="{{ url_for('pacientes') }}" style="font-size:.82rem;color:var(--muted);display:inline-flex;align-items:center;gap:4px;margin-bottom:6px">&larr; Voltar pra Pacientes</a>
+    <h2 style="margin:0;display:flex;align-items:center;gap:10px">
+      📋 {{ paciente.nome }}
+      {% if paciente.tag == 'vip' %}<span class="badge" style="background:#FEF3C7;color:#92400E">⭐ VIP</span>{% endif %}
+      {% if paciente.tag == 'hof' %}<span class="badge" style="background:#EDE9FE;color:#5B21B6">HOF</span>{% endif %}
+      {% if paciente.tag == 'atencao' %}<span class="badge" style="background:#FEE2E2;color:#991B1B">⚠ Atenção especial</span>{% endif %}
+    </h2>
+    <div style="font-size:.85rem;color:var(--muted);margin-top:4px">
+      {{ paciente.telefone or 'sem telefone' }}
+      {% if paciente.nascimento %} · {{ paciente.nascimento.strftime('%d/%m/%Y') }}{% endif %}
+      · {{ consultas|length }} consulta(s) na clínica
+    </div>
+  </div>
+</div>
+
+{% if paciente.obs %}
+<div style="background:var(--mint);border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:.86rem;color:var(--teal-dk)">
+  <strong>Obs / Alergias:</strong> {{ paciente.obs }}
+</div>
+{% endif %}
+
+<!-- Odontograma -->
+<div style="background:var(--white);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow);margin-bottom:20px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <h3 style="font-family:'DM Serif Display',serif;color:var(--teal-dk);font-size:1rem;margin:0">🦷 Odontograma</h3>
+    <span id="odonto-status" style="font-size:.76rem;color:var(--muted)"></span>
+  </div>
+  <p style="font-size:.78rem;color:var(--muted);margin-bottom:14px">Clique num dente pra alternar o status. Salva automaticamente.</p>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;font-size:.74rem">
+    <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;border-radius:3px;background:#fff;border:1.5px solid var(--border);display:inline-block"></span>Hígido</span>
+    <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;border-radius:3px;background:#EF4444;display:inline-block"></span>Cariado</span>
+    <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;border-radius:3px;background:#3B82F6;display:inline-block"></span>Restaurado</span>
+    <span style="display:flex;align-items:center;gap:4px"><span style="width:12px;height:12px;border-radius:3px;background:#9CA3AF;display:inline-block"></span>Ausente</span>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:6px;max-width:560px">
+    {% for d in dentes[:16] %}
+    <div class="dente" data-dente="{{ d }}" data-status="{{ odonto_dados.get(d|string, 'null') }}" onclick="cicloDente(this)" style="aspect-ratio:1;border:1.5px solid var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;cursor:pointer;background:{{ {'cariado':'#EF4444','restaurado':'#3B82F6','ausente':'#9CA3AF'}.get(odonto_dados.get(d|string), '#fff') }};color:{{ 'white' if odonto_dados.get(d|string) else 'var(--ink)' }}">{{ d }}</div>
+    {% endfor %}
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:6px;max-width:560px;margin-top:6px">
+    {% for d in dentes[16:] %}
+    <div class="dente" data-dente="{{ d }}" data-status="{{ odonto_dados.get(d|string, 'null') }}" onclick="cicloDente(this)" style="aspect-ratio:1;border:1.5px solid var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:700;cursor:pointer;background:{{ {'cariado':'#EF4444','restaurado':'#3B82F6','ausente':'#9CA3AF'}.get(odonto_dados.get(d|string), '#fff') }};color:{{ 'white' if odonto_dados.get(d|string) else 'var(--ink)' }}">{{ d }}</div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Anamnese -->
+<div style="background:var(--white);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow);margin-bottom:20px">
+  <h3 style="font-family:'DM Serif Display',serif;color:var(--teal-dk);font-size:1rem;margin-bottom:14px">📝 Anamnese</h3>
+
+  {% if anamnese_url %}
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+    <input type="text" readonly value="{{ anamnese_url }}" id="anamnese-link" style="flex:1;min-width:200px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:.8rem;background:var(--cream)">
+    <button class="btn btn-secondary btn-sm" onclick="copiarLink()">Copiar link</button>
+  </div>
+  {% else %}
+  <form method="POST" action="{{ url_for('gerar_link_anamnese', pid=paciente.id) }}" style="margin-bottom:14px">
+    <button type="submit" class="btn btn-primary btn-sm">Gerar link de anamnese pro paciente preencher</button>
+  </form>
+  {% endif %}
+
+  {% if paciente.anamneses %}
+  <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
+    {% for a in paciente.anamneses %}
+    {% set r = a.respostas|from_json %}
+    <details style="background:var(--cream);border-radius:8px;padding:10px 14px">
+      <summary style="cursor:pointer;font-size:.85rem;font-weight:600">Respondida em {{ a.criado_em.strftime('%d/%m/%Y %H:%M') }}</summary>
+      <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
+        {% for chave, pergunta in anamnese_perguntas %}
+        <div style="font-size:.82rem"><strong>{{ pergunta }}</strong><br>{{ r.get(chave) or '—' }}</div>
+        {% endfor %}
+      </div>
+    </details>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+<!-- Nova evolução -->
+<div style="background:var(--white);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow);margin-bottom:28px">
+  <h3 style="font-family:'DM Serif Display',serif;color:var(--teal-dk);font-size:1rem;margin-bottom:14px">Nova evolução clínica</h3>
+  <form method="POST" action="{{ url_for('nova_evolucao', pid=paciente.id) }}" enctype="multipart/form-data">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Data</label>
+        <input type="date" name="data" value="{{ hoje.isoformat() }}" required>
+      </div>
+      <div class="form-group">
+        <label>Vincular a uma consulta (opcional)</label>
+        <select name="consulta_id">
+          <option value="">— nenhuma —</option>
+          {% for c in consultas %}
+          <option value="{{ c.id }}">{{ c.data.strftime('%d/%m/%Y') }} — {{ c.procedimento or 'Consulta' }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Anotação / evolução</label>
+      <textarea name="texto" rows="3" placeholder="Ex: Paciente relatou sensibilidade no dente 26. Realizada restauração. Retorno em 30 dias." required></textarea>
+    </div>
+    <div class="form-group">
+      <label>Anexo (foto, radiografia ou PDF — opcional)</label>
+      <input type="file" name="anexo" accept=".jpg,.jpeg,.png,.webp,.pdf">
+    </div>
+    <div style="display:flex;justify-content:flex-end">
+      <button type="submit" class="btn btn-primary">Salvar evolução</button>
+    </div>
+  </form>
+</div>
+
+<!-- Linha do tempo -->
+<h3 style="font-family:'DM Serif Display',serif;color:var(--teal-dk);font-size:1.1rem;margin-bottom:14px">Histórico clínico</h3>
+
+{% if not paciente.evolucoes %}
+<div class="empty"><p>Nenhuma evolução registrada ainda.</p></div>
+{% else %}
+<div style="display:flex;flex-direction:column;gap:12px">
+  {% for ev in paciente.evolucoes %}
+  <div style="background:var(--white);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow);border-left:3px solid var(--teal)">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:8px">
+      <div>
+        <span style="font-weight:600;font-size:.9rem">{{ ev.data.strftime('%d/%m/%Y') }}</span>
+        {% if ev.consulta %}
+        <span class="badge badge-confirmado" style="margin-left:6px">{{ ev.consulta.procedimento or 'consulta vinculada' }}</span>
+        {% endif %}
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="if(confirm('Excluir esta evolução?')){document.getElementById('del-{{ ev.id }}').submit()}">Excluir</button>
+      <form id="del-{{ ev.id }}" method="POST" action="{{ url_for('excluir_evolucao', eid=ev.id) }}" style="display:none"></form>
+    </div>
+    <p style="font-size:.9rem;color:var(--ink);line-height:1.55;white-space:pre-wrap">{{ ev.texto }}</p>
+    {% if ev.anexo_arquivo %}
+    <div style="margin-top:10px">
+      {% if ev.anexo_tipo == 'imagem' %}
+      <a href="{{ url_for('static', filename=ev.anexo_arquivo) }}" target="_blank">
+        <img src="{{ url_for('static', filename=ev.anexo_arquivo) }}" alt="Anexo" style="max-width:180px;border-radius:8px;border:1px solid var(--border)">
+      </a>
+      {% else %}
+      <a href="{{ url_for('static', filename=ev.anexo_arquivo) }}" target="_blank" class="btn btn-secondary btn-sm">📄 Ver PDF anexado</a>
+      {% endif %}
+    </div>
+    {% endif %}
+    <div style="font-size:.72rem;color:var(--muted);margin-top:10px">
+      registrado em {{ ev.criado_em.strftime('%d/%m/%Y %H:%M') }}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CICLO = [null, 'cariado', 'restaurado', 'ausente'];
+const CORES = {null: '#fff', 'cariado':'#EF4444', 'restaurado':'#3B82F6', 'ausente':'#9CA3AF'};
+const PACIENTE_ID = {{ paciente.id }};
+let salvarTimeout = null;
+
+function cicloDente(el) {
+  const atual = el.dataset.status || 'null';
+  const idxAtual = CICLO.indexOf(atual === 'null' ? null : atual);
+  const proximo = CICLO[(idxAtual + 1) % CICLO.length];
+  el.dataset.status = proximo || 'null';
+  el.style.background = CORES[proximo];
+  el.style.color = proximo ? '#fff' : 'var(--ink)';
+  agendarSalvar();
+}
+
+function agendarSalvar() {
+  document.getElementById('odonto-status').textContent = 'Salvando...';
+  clearTimeout(salvarTimeout);
+  salvarTimeout = setTimeout(salvarOdontograma, 500);
+}
+
+async function salvarOdontograma() {
+  const dados = {};
+  document.querySelectorAll('.dente').forEach(el => {
+    if (el.dataset.status && el.dataset.status !== 'null') {
+      dados[el.dataset.dente] = el.dataset.status;
+    }
+  });
+  try {
+    const r = await fetch(`/pacientes/${PACIENTE_ID}/odontograma/salvar`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(dados)
+    });
+    document.getElementById('odonto-status').textContent = r.ok ? 'Salvo ✓' : 'Erro ao salvar';
+    setTimeout(() => document.getElementById('odonto-status').textContent = '', 2000);
+  } catch (e) {
+    document.getElementById('odonto-status').textContent = 'Erro de conexão';
+  }
+}
+
+function copiarLink() {
+  const el = document.getElementById('anamnese-link');
+  el.select();
+  navigator.clipboard.writeText(el.value).then(() => toast('Link copiado!'));
+}
+</script>
+{% endblock %}
